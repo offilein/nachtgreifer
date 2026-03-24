@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login – Nachtgreifer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0e0e12; color: #cdd6f4; }
+    input { background-color: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; }
+    input:focus { outline: none; border-color: #cba6f7; }
+    input::placeholder { color: #6c6f85; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <a href="/" class="text-3xl font-bold tracking-tight" style="color:#cba6f7">&#x2736; nachtgreifer</a>
+      <p class="text-[#6c6f85] mt-2 text-sm">Willkommen zurück</p>
+    </div>
+
+    <div style="background:#16161e;border:1px solid #313244" class="rounded-2xl p-8">
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1.5">E-Mail</label>
+          <input type="email" id="email" required placeholder="deine@email.de"
+            class="w-full rounded-lg px-3 py-2.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Passwort</label>
+          <input type="password" id="password" required placeholder="••••••••"
+            class="w-full rounded-lg px-3 py-2.5 text-sm" />
+        </div>
+
+        <p id="error-msg" class="text-sm text-[#f38ba8] hidden"></p>
+
+        <button type="submit" id="submit-btn"
+          class="w-full py-2.5 rounded-lg font-medium text-sm transition-opacity hover:opacity-90"
+          style="background:#cba6f7;color:#0e0e12">
+          Einloggen
+        </button>
+      </form>
+
+      <p class="text-center text-sm text-[#6c6f85] mt-6">
+        Noch kein Konto?
+        <a href="/register.html" class="text-[#cba6f7] hover:underline">Registrieren</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (getToken()) location.href = '/';
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const err = document.getElementById('error-msg');
+      err.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Wird eingeloggt...';
+
+      try {
+        const { token, user } = await api.login({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        });
+        setAuth(token, user);
+        location.href = '/';
+      } catch (e) {
+        err.textContent = e.message;
+        err.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Einloggen';
+      }
+    }
+  </script>
+</body>
+</html>

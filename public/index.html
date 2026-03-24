@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nachtgreifer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            base: '#0e0e12',
+            surface: '#16161e',
+            overlay: '#1e1e2e',
+            muted: '#6c6f85',
+            text: '#cdd6f4',
+            accent: '#cba6f7',
+            green: '#a6e3a1',
+            red: '#f38ba8',
+            blue: '#89b4fa',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0e0e12; color: #cdd6f4; }
+    .card { background-color: #16161e; border: 1px solid #313244; }
+    .card:hover { border-color: #cba6f7; }
+    .img-thumb { aspect-ratio: 1; object-fit: cover; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #16161e; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #313244; border-radius: 2px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 border-b border-[#313244]" style="background:#0e0e12ee;backdrop-filter:blur(12px)">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight" style="color:#cba6f7">
+        &#x2736; nachtgreifer
+      </a>
+      <div class="flex items-center gap-3" id="nav-actions">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+
+    <!-- Toolbar: Suche + Sortierung -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+      <div class="relative flex-1">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[#6c6f85] text-sm">🔍</span>
+        <input type="text" id="search-input" placeholder="Suchen..." oninput="onSearch()"
+          class="w-full rounded-lg pl-9 pr-4 py-2 text-sm"
+          style="background:#16161e;border:1px solid #313244;color:#cdd6f4;outline:none"
+          onfocus="this.style.borderColor='#cba6f7'" onblur="this.style.borderColor='#313244'" />
+      </div>
+      <select id="sort-select" onchange="onSort()"
+        class="rounded-lg px-3 py-2 text-sm"
+        style="background:#16161e;border:1px solid #313244;color:#cdd6f4;outline:none">
+        <option value="newest">Neueste</option>
+        <option value="top">Top bewertet</option>
+        <option value="discussed">Meiste Kommentare</option>
+        <option value="oldest">Älteste</option>
+      </select>
+    </div>
+
+    <div id="posts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <!-- filled by JS -->
+    </div>
+    <div id="loading" class="text-center py-16 text-[#6c6f85]">Lade Beiträge...</div>
+    <div id="pagination" class="flex justify-center gap-3 mt-8 hidden">
+      <button id="prev-btn" onclick="changePage(-1)" class="px-4 py-2 rounded-lg border border-[#313244] hover:border-[#cba6f7] transition-colors disabled:opacity-40">← Zurück</button>
+      <span id="page-info" class="px-4 py-2 text-[#6c6f85]"></span>
+      <button id="next-btn" onclick="changePage(1)" class="px-4 py-2 rounded-lg border border-[#313244] hover:border-[#cba6f7] transition-colors disabled:opacity-40">Weiter →</button>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let searchTimeout = null;
+
+    function getCurrentSort() { return document.getElementById('sort-select').value; }
+    function getCurrentSearch() { return document.getElementById('search-input').value.trim(); }
+
+    function onSearch() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => loadPosts(1), 350);
+    }
+
+    function onSort() { loadPosts(1); }
+
+    function renderNav() {
+      const user = getUser();
+      const nav = document.getElementById('nav-actions');
+      if (user) {
+        nav.innerHTML = `
+          <a href="/upload.html" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="background:#cba6f7;color:#0e0e12">+ Upload</a>
+          <a href="/profile.html?id=${user.id}" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img src="${avatarUrl(user.avatar_url, user.username)}" class="w-8 h-8 rounded-full object-cover border border-[#313244]" />
+            <span class="text-sm hidden sm:block">${user.username}</span>
+          </a>
+          <button onclick="logout()" class="text-sm text-[#6c6f85] hover:text-[#f38ba8] transition-colors">Logout</button>
+        `;
+      } else {
+        nav.innerHTML = `
+          <a href="/login.html" class="text-sm text-[#6c6f85] hover:text-[#cdd6f4] transition-colors">Login</a>
+          <a href="/register.html" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors" style="background:#cba6f7;color:#0e0e12">Registrieren</a>
+        `;
+      }
+    }
+
+    function logout() {
+      clearAuth();
+      location.reload();
+    }
+
+    function postCard(p) {
+      return `
+        <a href="/post.html?id=${p.id}" class="card rounded-xl overflow-hidden transition-all duration-200 group block">
+          <div class="relative overflow-hidden bg-[#1e1e2e]">
+            <img src="${p.image_url}" alt="${p.title}" class="img-thumb w-full transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+          </div>
+          <div class="p-3">
+            <p class="text-sm font-medium truncate mb-2">${p.title}</p>
+            <div class="flex items-center justify-between text-xs text-[#6c6f85]">
+              <span class="${p.score >= 0 ? 'text-[#a6e3a1]' : 'text-[#f38ba8]'}">
+                ${p.score >= 0 ? '▲' : '▼'} ${Math.abs(p.score)}
+              </span>
+              <span>💬 ${p.comment_count}</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-2">
+              <img src="${avatarUrl(p.avatar_url, p.username)}" class="w-5 h-5 rounded-full object-cover" />
+              <span class="text-xs text-[#6c6f85] truncate">${p.username}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    async function loadPosts(page = 1) {
+      const grid = document.getElementById('posts-grid');
+      const loading = document.getElementById('loading');
+      loading.classList.remove('hidden');
+      grid.innerHTML = '';
+
+      try {
+        const { posts, pagination } = await api.getPosts(page, getCurrentSort(), getCurrentSearch());
+        loading.classList.add('hidden');
+        currentPage = pagination.page;
+        totalPages = pagination.pages;
+
+        if (posts.length === 0) {
+          loading.textContent = getCurrentSearch() ? `Keine Ergebnisse für "${getCurrentSearch()}"` : 'Noch keine Beiträge.';
+          loading.classList.remove('hidden');
+          return;
+        }
+
+        grid.innerHTML = posts.map(postCard).join('');
+
+        const pag = document.getElementById('pagination');
+        pag.classList.remove('hidden');
+        document.getElementById('page-info').textContent = `Seite ${currentPage} / ${totalPages}`;
+        document.getElementById('prev-btn').disabled = currentPage <= 1;
+        document.getElementById('next-btn').disabled = currentPage >= totalPages;
+      } catch (err) {
+        loading.textContent = 'Fehler beim Laden: ' + err.message;
+      }
+    }
+
+    function changePage(delta) {
+      const newPage = currentPage + delta;
+      if (newPage < 1 || newPage > totalPages) return;
+      loadPosts(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    renderNav();
+    loadPosts();
+  </script>
+</body>
+</html>

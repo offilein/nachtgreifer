@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post – Nachtgreifer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
+  <style>
+    body { background-color: #0e0e12; color: #cdd6f4; }
+    .card { background-color: #16161e; border: 1px solid #313244; }
+    input, textarea { background-color: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; }
+    input:focus, textarea:focus { outline: none; border-color: #cba6f7; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <nav class="sticky top-0 z-50 border-b border-[#313244]" style="background:#0e0e12ee;backdrop-filter:blur(12px)">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight" style="color:#cba6f7">&#x2736; nachtgreifer</a>
+      <div id="nav-actions" class="flex items-center gap-3"></div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div id="loading" class="text-center py-16 text-[#6c6f85]">Lade Beitrag...</div>
+    <div id="content" class="hidden">
+
+      <!-- Post -->
+      <div class="card rounded-xl overflow-hidden mb-6">
+        <img id="post-image" src="" alt="" class="w-full max-h-[70vh] object-contain bg-[#0e0e12]" />
+        <div class="p-6">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <h1 id="post-title" class="text-2xl font-bold"></h1>
+            <div class="flex items-center gap-2 shrink-0">
+              <button id="upvote-btn" onclick="rate(1)" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all">
+                ▲ <span id="upvote-label"></span>
+              </button>
+              <span id="score" class="text-lg font-bold min-w-[2rem] text-center"></span>
+              <button id="downvote-btn" onclick="rate(-1)" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all">
+                ▼ <span id="downvote-label"></span>
+              </button>
+              <button id="delete-post-btn" onclick="deletePost()" class="hidden ml-2 px-3 py-1.5 rounded-lg border border-[#f38ba8] text-[#f38ba8] text-sm hover:bg-[#f38ba8] hover:text-[#0e0e12] transition-all">Löschen</button>
+            </div>
+          </div>
+          <p id="post-desc" class="text-[#6c6f85] mb-4 hidden"></p>
+          <div class="flex items-center gap-2">
+            <a id="post-author-link" href="#">
+              <img id="post-avatar" src="" class="w-8 h-8 rounded-full object-cover border border-[#313244]" />
+            </a>
+            <div>
+              <a id="post-username" href="#" class="text-sm font-medium hover:text-[#cba6f7] transition-colors"></a>
+              <p id="post-date" class="text-xs text-[#6c6f85]"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments -->
+      <div class="card rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Kommentare <span id="comment-count" class="text-[#6c6f85] text-sm font-normal"></span></h2>
+
+        <!-- Comment form (auth only) -->
+        <div id="comment-form" class="hidden mb-6">
+          <textarea id="comment-input" rows="3" placeholder="Schreibe einen Kommentar..."
+            class="w-full rounded-lg px-3 py-2 text-sm resize-none mb-2 placeholder-[#6c6f85]"></textarea>
+          <button onclick="submitComment()" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors" style="background:#cba6f7;color:#0e0e12">
+            Kommentieren
+          </button>
+          <span id="comment-error" class="ml-3 text-sm text-[#f38ba8] hidden"></span>
+        </div>
+        <div id="guest-hint" class="hidden text-sm text-[#6c6f85] mb-6">
+          <a href="/login.html" class="text-[#cba6f7] hover:underline">Anmelden</a> um zu kommentieren.
+        </div>
+
+        <div id="comments-list" class="space-y-4"></div>
+        <p id="no-comments" class="text-[#6c6f85] text-sm hidden">Noch keine Kommentare.</p>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const postId = params.get('id');
+    let currentPost = null;
+    let currentUser = getUser();
+
+    function renderNav() {
+      const nav = document.getElementById('nav-actions');
+      if (currentUser) {
+        nav.innerHTML = `
+          <a href="/upload.html" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#cba6f7;color:#0e0e12">+ Upload</a>
+          <a href="/profile.html?id=${currentUser.id}" class="flex items-center gap-2 hover:opacity-80">
+            <img src="${avatarUrl(currentUser.avatar_url, currentUser.username)}" class="w-8 h-8 rounded-full object-cover border border-[#313244]" />
+          </a>
+          <button onclick="logout()" class="text-sm text-[#6c6f85] hover:text-[#f38ba8]">Logout</button>
+        `;
+      } else {
+        nav.innerHTML = `
+          <a href="/login.html" class="text-sm text-[#6c6f85] hover:text-[#cdd6f4]">Login</a>
+          <a href="/register.html" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#cba6f7;color:#0e0e12">Registrieren</a>
+        `;
+      }
+    }
+
+    function logout() { clearAuth(); location.href = '/'; }
+
+    function renderRating(score, userRating) {
+      document.getElementById('score').textContent = score;
+      document.getElementById('score').className = `text-lg font-bold min-w-[2rem] text-center ${score >= 0 ? 'text-[#a6e3a1]' : 'text-[#f38ba8]'}`;
+
+      const upBtn = document.getElementById('upvote-btn');
+      const downBtn = document.getElementById('downvote-btn');
+
+      upBtn.className = `flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${userRating === 1 ? 'border-[#a6e3a1] text-[#a6e3a1] bg-[#a6e3a1]/10' : 'border-[#313244] text-[#6c6f85] hover:border-[#a6e3a1] hover:text-[#a6e3a1]'}`;
+      downBtn.className = `flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${userRating === -1 ? 'border-[#f38ba8] text-[#f38ba8] bg-[#f38ba8]/10' : 'border-[#313244] text-[#6c6f85] hover:border-[#f38ba8] hover:text-[#f38ba8]'}`;
+
+      if (!currentUser) {
+        upBtn.disabled = true;
+        downBtn.disabled = true;
+        upBtn.title = 'Anmelden zum Bewerten';
+        downBtn.title = 'Anmelden zum Bewerten';
+      }
+    }
+
+    async function rate(value) {
+      if (!currentUser) return location.href = '/login.html';
+      try {
+        let result;
+        if (currentPost.user_rating === value) {
+          result = await api.removeRating(postId);
+        } else {
+          result = await api.ratePost(postId, value);
+        }
+        currentPost.score = result.score;
+        currentPost.user_rating = result.user_rating;
+        renderRating(result.score, result.user_rating);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deletePost() {
+      if (!confirm('Beitrag wirklich löschen?')) return;
+      try {
+        await api.deletePost(postId);
+        location.href = '/';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function renderComment(c) {
+      const isOwn = currentUser && currentUser.id === c.user_id;
+      return `
+        <div class="flex gap-3 group" id="comment-${c.id}">
+          <a href="/profile.html?id=${c.user_id}" class="shrink-0">
+            <img src="${avatarUrl(c.avatar_url, c.username)}" class="w-8 h-8 rounded-full object-cover border border-[#313244]" />
+          </a>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <a href="/profile.html?id=${c.user_id}" class="text-sm font-medium hover:text-[#cba6f7] transition-colors">${c.username}</a>
+              <span class="text-xs text-[#6c6f85]">${formatDate(c.created_at)}</span>
+              ${isOwn ? `<button onclick="deleteComment(${c.id})" class="ml-auto text-xs text-[#6c6f85] hover:text-[#f38ba8] opacity-0 group-hover:opacity-100 transition-all">Löschen</button>` : ''}
+            </div>
+            <p class="text-sm leading-relaxed break-words">${c.content.replace(/</g, '&lt;')}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadComments() {
+      try {
+        const comments = await api.getComments(postId);
+        const list = document.getElementById('comments-list');
+        const none = document.getElementById('no-comments');
+        document.getElementById('comment-count').textContent = `(${comments.length})`;
+
+        if (comments.length === 0) {
+          none.classList.remove('hidden');
+        } else {
+          none.classList.add('hidden');
+          list.innerHTML = comments.map(renderComment).join('');
+        }
+      } catch {}
+    }
+
+    async function submitComment() {
+      const input = document.getElementById('comment-input');
+      const err = document.getElementById('comment-error');
+      const content = input.value.trim();
+      err.classList.add('hidden');
+
+      if (!content) return;
+
+      try {
+        const comment = await api.createComment(postId, content);
+        input.value = '';
+        const none = document.getElementById('no-comments');
+        none.classList.add('hidden');
+        const list = document.getElementById('comments-list');
+        list.insertAdjacentHTML('beforeend', renderComment(comment));
+        const countEl = document.getElementById('comment-count');
+        const current = parseInt(countEl.textContent.replace(/\D/g,'')) || 0;
+        countEl.textContent = `(${current + 1})`;
+      } catch (e) {
+        err.textContent = e.message;
+        err.classList.remove('hidden');
+      }
+    }
+
+    async function deleteComment(id) {
+      if (!confirm('Kommentar löschen?')) return;
+      try {
+        await api.deleteComment(id);
+        document.getElementById(`comment-${id}`)?.remove();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function init() {
+      if (!postId) return location.href = '/';
+      renderNav();
+
+      try {
+        currentPost = await api.getPost(postId);
+        document.title = `${currentPost.title} – Nachtgreifer`;
+
+        document.getElementById('post-image').src = currentPost.image_url;
+        document.getElementById('post-image').alt = currentPost.title;
+        document.getElementById('post-title').textContent = currentPost.title;
+
+        if (currentPost.description) {
+          const desc = document.getElementById('post-desc');
+          desc.textContent = currentPost.description;
+          desc.classList.remove('hidden');
+        }
+
+        const authorLink = `/profile.html?id=${currentPost.user_id}`;
+        document.getElementById('post-author-link').href = authorLink;
+        document.getElementById('post-username').href = authorLink;
+        document.getElementById('post-username').textContent = currentPost.username;
+        document.getElementById('post-avatar').src = avatarUrl(currentPost.avatar_url, currentPost.username);
+        document.getElementById('post-date').textContent = formatDate(currentPost.created_at);
+
+        renderRating(currentPost.score, currentPost.user_rating);
+
+        if (currentUser && currentUser.id === currentPost.user_id) {
+          document.getElementById('delete-post-btn').classList.remove('hidden');
+        }
+
+        if (currentUser) {
+          document.getElementById('comment-form').classList.remove('hidden');
+        } else {
+          document.getElementById('guest-hint').classList.remove('hidden');
+        }
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+        await loadComments();
+      } catch (err) {
+        document.getElementById('loading').textContent = 'Beitrag nicht gefunden.';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

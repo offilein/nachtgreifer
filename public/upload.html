@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload – Nachtgreifer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0e0e12; color: #cdd6f4; }
+    input, textarea { background-color: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; }
+    input:focus, textarea:focus { outline: none; border-color: #cba6f7; }
+    input::placeholder, textarea::placeholder { color: #6c6f85; }
+    #drop-zone { border: 2px dashed #313244; transition: border-color 0.2s, background-color 0.2s; }
+    #drop-zone.drag-over { border-color: #cba6f7; background-color: #1e1e2e; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <nav class="sticky top-0 z-50 border-b border-[#313244]" style="background:#0e0e12ee;backdrop-filter:blur(12px)">
+    <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight" style="color:#cba6f7">&#x2736; nachtgreifer</a>
+      <a href="/" class="text-sm text-[#6c6f85] hover:text-[#cdd6f4] transition-colors">← Zurück</a>
+    </div>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 py-10">
+    <h1 class="text-2xl font-bold mb-8">Bild hochladen</h1>
+
+    <div id="auth-check" class="hidden text-center py-16">
+      <p class="text-[#6c6f85] mb-4">Bitte zuerst anmelden.</p>
+      <a href="/login.html" class="px-6 py-2 rounded-lg font-medium text-sm" style="background:#cba6f7;color:#0e0e12">Zum Login</a>
+    </div>
+
+    <form id="upload-form" class="space-y-6 hidden" onsubmit="handleUpload(event)">
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="rounded-xl p-8 text-center cursor-pointer" onclick="document.getElementById('file-input').click()">
+        <div id="drop-placeholder">
+          <div class="text-4xl mb-3">📷</div>
+          <p class="font-medium mb-1">Bild hier ablegen oder klicken</p>
+          <p class="text-sm text-[#6c6f85]">JPEG, PNG, GIF, WebP · max. 10 MB</p>
+        </div>
+        <img id="preview" src="" alt="Vorschau" class="hidden max-h-64 mx-auto rounded-lg object-contain" />
+      </div>
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" onchange="onFileSelect(event)" />
+
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Titel <span class="text-[#f38ba8]">*</span></label>
+        <input type="text" id="title" required maxlength="255" placeholder="Bildtitel..."
+          class="w-full rounded-lg px-3 py-2.5 text-sm" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Beschreibung <span class="text-[#6c6f85] font-normal">(optional)</span></label>
+        <textarea id="description" rows="3" maxlength="2000" placeholder="Beschreibe dein Bild..."
+          class="w-full rounded-lg px-3 py-2.5 text-sm resize-none"></textarea>
+      </div>
+
+      <div id="progress" class="hidden">
+        <div class="h-1.5 rounded-full overflow-hidden" style="background:#1e1e2e">
+          <div id="progress-bar" class="h-full rounded-full transition-all duration-300" style="background:#cba6f7;width:0%"></div>
+        </div>
+        <p id="progress-text" class="text-sm text-[#6c6f85] mt-2">Wird hochgeladen...</p>
+      </div>
+
+      <p id="error-msg" class="text-sm text-[#f38ba8] hidden"></p>
+
+      <button type="submit" id="submit-btn"
+        class="w-full py-3 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+        style="background:#cba6f7;color:#0e0e12">
+        Hochladen
+      </button>
+    </form>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let selectedFile = null;
+
+    function init() {
+      if (!getToken()) {
+        document.getElementById('auth-check').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('upload-form').classList.remove('hidden');
+      setupDragDrop();
+    }
+
+    function setupDragDrop() {
+      const zone = document.getElementById('drop-zone');
+      zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) setFile(file);
+      });
+    }
+
+    function onFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) setFile(file);
+    }
+
+    function setFile(file) {
+      if (!file.type.startsWith('image/')) {
+        showError('Nur Bilddateien erlaubt.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showError('Maximale Dateigröße: 10 MB.');
+        return;
+      }
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = document.getElementById('preview');
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        document.getElementById('drop-placeholder').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+      hideError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function hideError() {
+      document.getElementById('error-msg').classList.add('hidden');
+    }
+
+    async function handleUpload(e) {
+      e.preventDefault();
+      if (!selectedFile) { showError('Bitte ein Bild auswählen.'); return; }
+
+      const title = document.getElementById('title').value.trim();
+      if (!title) { showError('Titel ist erforderlich.'); return; }
+
+      const btn = document.getElementById('submit-btn');
+      const progress = document.getElementById('progress');
+      btn.disabled = true;
+      progress.classList.remove('hidden');
+      hideError();
+
+      // Simulate progress (actual upload doesn't stream progress with fetch)
+      let pct = 0;
+      const interval = setInterval(() => {
+        pct = Math.min(pct + 10, 85);
+        document.getElementById('progress-bar').style.width = pct + '%';
+      }, 200);
+
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+      formData.append('title', title);
+      const desc = document.getElementById('description').value.trim();
+      if (desc) formData.append('description', desc);
+
+      try {
+        const post = await api.createPost(formData);
+        clearInterval(interval);
+        document.getElementById('progress-bar').style.width = '100%';
+        document.getElementById('progress-text').textContent = 'Fertig! Weiterleitung...';
+        setTimeout(() => location.href = `/post.html?id=${post.id}`, 800);
+      } catch (err) {
+        clearInterval(interval);
+        progress.classList.add('hidden');
+        showError(err.message);
+        btn.disabled = false;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

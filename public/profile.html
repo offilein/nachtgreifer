@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil – Nachtgreifer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0e0e12; color: #cdd6f4; }
+    .card { background-color: #16161e; border: 1px solid #313244; }
+    .img-thumb { aspect-ratio: 1; object-fit: cover; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <nav class="sticky top-0 z-50 border-b border-[#313244]" style="background:#0e0e12ee;backdrop-filter:blur(12px)">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight" style="color:#cba6f7">&#x2736; nachtgreifer</a>
+      <div id="nav-actions" class="flex items-center gap-3"></div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-4 py-10">
+    <div id="loading" class="text-center py-16 text-[#6c6f85]">Lade Profil...</div>
+    <div id="content" class="hidden">
+
+      <!-- Profile header -->
+      <div class="card rounded-2xl p-8 mb-8 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        <div class="relative group">
+          <img id="avatar-img" src="" class="w-24 h-24 rounded-full object-cover border-2 border-[#313244]" />
+          <div id="avatar-overlay"
+            class="absolute inset-0 rounded-full bg-black/60 items-center justify-center cursor-pointer"
+            style="display:none"
+            onclick="document.getElementById('avatar-input').click()">
+            <span class="text-xs text-white font-medium">Ändern</span>
+          </div>
+          <input type="file" id="avatar-input" accept="image/*" class="hidden" onchange="uploadAvatar(event)" />
+        </div>
+
+        <div class="text-center sm:text-left">
+          <h1 id="username" class="text-2xl font-bold mb-1"></h1>
+          <p id="joined" class="text-sm text-[#6c6f85]"></p>
+          <p id="post-count" class="text-sm text-[#6c6f85] mt-1"></p>
+        </div>
+      </div>
+
+      <!-- Posts grid -->
+      <h2 class="text-lg font-semibold mb-4">Beiträge</h2>
+      <div id="posts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+      <p id="no-posts" class="text-[#6c6f85] text-sm hidden">Noch keine Beiträge.</p>
+
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const userId = params.get('id');
+    let currentUser = getUser();
+
+    function renderNav() {
+      const nav = document.getElementById('nav-actions');
+      if (currentUser) {
+        nav.innerHTML = `
+          <a href="/upload.html" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#cba6f7;color:#0e0e12">+ Upload</a>
+          <a href="/profile.html?id=${currentUser.id}" class="flex items-center gap-2 hover:opacity-80">
+            <img src="${avatarUrl(currentUser.avatar_url, currentUser.username)}" class="w-8 h-8 rounded-full object-cover border border-[#313244]" />
+          </a>
+          <button onclick="logout()" class="text-sm text-[#6c6f85] hover:text-[#f38ba8]">Logout</button>
+        `;
+      } else {
+        nav.innerHTML = `
+          <a href="/login.html" class="text-sm text-[#6c6f85] hover:text-[#cdd6f4]">Login</a>
+          <a href="/register.html" class="px-4 py-1.5 rounded-lg text-sm font-medium" style="background:#cba6f7;color:#0e0e12">Registrieren</a>
+        `;
+      }
+    }
+
+    function logout() { clearAuth(); location.href = '/'; }
+
+    async function uploadAvatar(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('avatar', file);
+      try {
+        const updated = await api.updateAvatar(formData);
+        document.getElementById('avatar-img').src = updated.avatar_url;
+        // Update stored user
+        const user = getUser();
+        user.avatar_url = updated.avatar_url;
+        setAuth(getToken(), user);
+        currentUser = user;
+      } catch (err) {
+        alert('Avatar-Upload fehlgeschlagen: ' + err.message);
+      }
+    }
+
+    function postCard(p) {
+      return `
+        <a href="/post.html?id=${p.id}" class="card rounded-xl overflow-hidden hover:border-[#cba6f7] transition-all group block">
+          <div class="overflow-hidden bg-[#1e1e2e]">
+            <img src="${p.image_url}" class="img-thumb w-full transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+          </div>
+          <div class="p-3">
+            <p class="text-sm font-medium truncate mb-1">${p.title}</p>
+            <div class="flex items-center justify-between text-xs text-[#6c6f85]">
+              <span class="${p.score >= 0 ? 'text-[#a6e3a1]' : 'text-[#f38ba8]'}">${p.score >= 0 ? '▲' : '▼'} ${Math.abs(p.score)}</span>
+              <span>💬 ${p.comment_count}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    async function init() {
+      if (!userId) return location.href = '/';
+      renderNav();
+
+      try {
+        const user = await api.getUser(userId);
+        document.title = `${user.username} – Nachtgreifer`;
+
+        document.getElementById('avatar-img').src = avatarUrl(user.avatar_url, user.username);
+        document.getElementById('username').textContent = user.username;
+        document.getElementById('joined').textContent = `Dabei seit ${formatDate(user.created_at)}`;
+        document.getElementById('post-count').textContent = `${user.posts.length} Beitrag${user.posts.length !== 1 ? 'e' : ''}`;
+
+        // Show avatar edit option for own profile
+        if (currentUser && currentUser.id === parseInt(userId)) {
+          const overlay = document.getElementById('avatar-overlay');
+          overlay.style.display = 'none';
+          // Show on hover via JS since Tailwind hidden !important conflicts with group-hover
+          const avatarWrapper = overlay.parentElement;
+          avatarWrapper.addEventListener('mouseenter', () => { overlay.style.display = 'flex'; });
+          avatarWrapper.addEventListener('mouseleave', () => { overlay.style.display = 'none'; });
+        }
+
+        const grid = document.getElementById('posts-grid');
+        if (user.posts.length === 0) {
+          document.getElementById('no-posts').classList.remove('hidden');
+        } else {
+          grid.innerHTML = user.posts.map(postCard).join('');
+        }
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+      } catch {
+        document.getElementById('loading').textContent = 'Benutzer nicht gefunden.';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
