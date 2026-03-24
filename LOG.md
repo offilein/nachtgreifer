@@ -124,6 +124,38 @@ PUT    /api/users/me/avatar    (auth, multipart/form-data)
 
 ---
 
+## 2026-03-24 (Fortsetzung 3)
+
+### Lokales Setup auf neuem PC (Docker)
+
+**Durchgeführte Schritte:**
+- PostgreSQL läuft als Docker-Container (kein natives Install nötig)
+- `.env` befüllt: `DATABASE_URL`, `JWT_SECRET`, Cloudinary-Credentials
+- `npm run db:migrate` erfolgreich — alle Tabellen angelegt
+- App startet mit `npm run dev` auf Port 3000
+
+**Docker-Container:**
+```
+Name:     nachtgreifer-db
+Image:    postgres:17
+Port:     5432
+User:     nachtgreifer
+DB:       nachtgreifer
+```
+
+**Startbefehl (einmaliges Erstellen des Containers, nur beim ersten Mal):**
+```powershell
+docker run -d --name nachtgreifer-db -e POSTGRES_USER=nachtgreifer -e POSTGRES_PASSWORD=nachtgreifer123 -e POSTGRES_DB=nachtgreifer -p 5432:5432 postgres:17
+```
+
+**Ab dem zweiten Mal:** Einfach `start.bat` doppelklicken — startet Docker-Container und App automatisch.
+
+**Offene Punkte:**
+- [ ] Hosting einrichten (Railway oder Render)
+- [ ] PostgreSQL-Instanz für Production provisionieren
+
+---
+
 ## Projekt an einem anderen PC weiterbearbeiten
 
 ### Erstmalig (neuer PC, kein lokaler Klon vorhanden)
@@ -158,3 +190,58 @@ Claude Code im Projektordner starten:
 claude
 ```
 Claude liest automatisch den `LOG.md` und kennt den gesamten Projektstand.
+
+---
+
+## 2026-03-24 (Fortsetzung 4)
+
+### UI-Design in Pencil.dev + Components Sheet
+
+**Design-Datei:** `pencil-new.pen` (Pencil VSCode Extension)
+
+**Farbpalette (warm, orientiert an nachtgreifer.jpg):**
+| Variable | Hex | Verwendung |
+|---|---|---|
+| bg-main | `#0d0a12` | Seitenhintergrund |
+| bg-sidebar | `#120a1a` | Sidebar |
+| bg-surface | `#1c1025` | Karten, Inputs |
+| accent | `#ff5522` | Primäre Akzentfarbe (Orange-Rot) |
+| accent-purple | `#c44dff` | Sekundäre Akzentfarbe |
+| accent-green | `#39ff14` | Online-Status, .fun-Suffix |
+| text-primary | `#e8d4ff` | Haupttext |
+| text-muted | `#7a5a99` | Labels, Untertitel |
+
+**Font:** `Geist Mono` durchgehend
+
+**Feed-Seite (1440×900):**
+- Header: Logo links (absoluter Pfad nötig für Pencil, s.u.), 60px hoch
+- Toolbar: Suchleiste + Sort-Dropdown, 36px
+- Tag-Bar: Kategorie-Pills (Alle, Kunst, Foto, …), 30px
+- Feed-Grid: 5 Zeilen à 3 Spalten, Höhen 188 → 110px (neueste = größte)
+  - Keine Lücken zwischen Bildern, Zeile für Zeile links→rechts
+  - Nur Like-Overlay unten-links pro Thumbnail (kein Metadaten-Balken)
+  - NEU-Badge oben-links bei neuen Posts
+- Sidebar (275px): Logout-Bar → Profil-Karte (lila Border) → Upload-Button (orange Border, hollow) → Navigation → Kommentare → Online-User → Site-Stats
+
+**Components Sheet (1440×1200, darunter):**
+Reusable Components dokumentiert:
+- Logo, Image Card (large + small), Upload Button, Nav Item (active/inactive), Tag Pills, Badges (NEU/TOP), Profile Card, Comment Item, User Avatar (mit Online-Dot), Search Bar, Color Palette, Typography Scale
+
+**Logo-Hinweis (Pencil):**
+Pencil kann nur **absolute Pfade** für Bilder auflösen (relative Pfade schlagen fehl).
+- Logo-Datei liegt unter: `public/images/logo.png` (für die Web-App) und `logo.png` (Projektwurzel, für Pencil)
+- Im `.pen`-File ist der Pfad hartcodiert auf `c:/Users/patri/Documents/Projects/nachtgreifer/logo.png`
+- Auf einem anderen PC muss der Pfad im Pencil-File manuell aktualisiert werden (Frame `oWEss` im Header und `2Aq8v` im Components Sheet)
+
+**Neue Dateien:**
+| Datei | Beschreibung |
+|---|---|
+| `pencil-new.pen` | Pencil-Design-Datei: Feed-Seite + Components Sheet |
+| `public/images/logo.png` | Nachtgreifer-Logo (für Web-App) |
+| `logo.png` | Kopie des Logos in Projektwurzel (für Pencil-Absolut-Pfad) |
+| `start.bat` | Startet Docker-DB + App per Doppelklick |
+
+**Offene Punkte:**
+- [ ] HTML/CSS aus dem Design implementieren (`public/index.html`, `public/post.html`, etc.)
+- [ ] Hosting einrichten (Railway oder Render)
+- [ ] PostgreSQL-Instanz für Production provisionieren
