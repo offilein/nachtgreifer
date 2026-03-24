@@ -23,7 +23,12 @@ app.use('/api/posts', commentRoutes);
 app.use('/api/posts', ratingRoutes);
 app.use('/api/users', userRoutes);
 
-// Serve frontend for all non-API routes
+// Unknown API routes → JSON 404
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Serve frontend for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });

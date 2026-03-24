@@ -108,7 +108,53 @@ PUT    /api/users/me/avatar    (auth, multipart/form-data)
 
 **Offene Punkte:**
 - [x] `.env` befüllen — erstellt mit Kommentaren zu jeder Variable
+- [x] Repo auf GitHub gepusht → https://github.com/offilein/nachtgreifer
 - [ ] Cloudinary-Account anlegen → cloudinary.com
 - [ ] Hosting einrichten (Railway oder Render)
 - [ ] PostgreSQL-Instanz provisionieren + `npm run db:migrate`
-- [ ] Repo auf GitHub gepusht → https://github.com/offilein/nachtgreifer
+
+---
+
+## 2026-03-24 (Fortsetzung 2)
+
+### Aufräumen & Clone/Pull-Anleitung
+
+**Bugfix:**
+- `src/app.js`: API-404-Handler vor dem Catch-All ergänzt — unbekannte `/api/*`-Routen geben jetzt JSON zurück statt `index.html`
+
+---
+
+## Projekt an einem anderen PC weiterbearbeiten
+
+### Erstmalig (neuer PC, kein lokaler Klon vorhanden)
+```bash
+git clone https://github.com/offilein/nachtgreifer
+cd nachtgreifer
+npm install
+cp .env.example .env
+# .env mit echten Werten befüllen (Cloudinary, DB, JWT)
+npm run db:migrate
+npm run dev
+```
+
+### Weiterarbeiten (Repo bereits geklont, Updates holen)
+```bash
+cd nachtgreifer
+git pull
+npm install        # nur nötig wenn sich package.json geändert hat
+npm run dev
+```
+
+### Änderungen pushen
+```bash
+git add .
+git commit -m "Beschreibung der Änderung"
+git push
+```
+
+### Mit Claude nahtlos weiterarbeiten
+Claude Code im Projektordner starten:
+```bash
+claude
+```
+Claude liest automatisch den `LOG.md` und kennt den gesamten Projektstand.
